@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador P&L — Snow Trips 2026</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0f1117;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: #888;
+    font-size: 0.85rem;
+    margin-bottom: 24px;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+  .season-card {
+    background: #1a1d27;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #2a2d3a;
+  }
+  .season-card h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .season-card .weeks {
+    font-size: 0.75rem;
+    color: #888;
+    margin-bottom: 16px;
+  }
+  .season-baja h3 { color: #4ade80; }
+  .season-media h3 { color: #60a5fa; }
+  .season-alta h3 { color: #f472b6; }
+
+  .slider-group {
+    margin-bottom: 14px;
+  }
+  .slider-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #aaa;
+    margin-bottom: 4px;
+  }
+  .slider-group label span.val {
+    color: #fff;
+    font-weight: 600;
+  }
+  input[type="range"] {
+    width: 100%;
+    height: 6px;
+    -webkit-appearance: none;
+    background: #2a2d3a;
+    border-radius: 3px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #0f1117;
+  }
+  .season-baja input[type="range"]::-webkit-slider-thumb { background: #4ade80; }
+  .season-media input[type="range"]::-webkit-slider-thumb { background: #60a5fa; }
+  .season-alta input[type="range"]::-webkit-slider-thumb { background: #f472b6; }
+
+  #chart-container {
+    background: #1a1d27;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #2a2d3a;
+    margin-bottom: 24px;
+  }
+
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .kpi {
+    background: #1a1d27;
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid #2a2d3a;
+    text-align: center;
+  }
+  .kpi .label {
+    font-size: 0.7rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .kpi .value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .kpi.result {
+    border: 2px solid;
+    grid-column: span 2;
+  }
+  .kpi.result .value {
+    font-size: 2rem;
+  }
+  .kpi.result.positive { border-color: #4ade80; }
+  .kpi.result.positive .value { color: #4ade80; }
+  .kpi.result.negative { border-color: #f87171; }
+  .kpi.result.negative .value { color: #f87171; }
+
+  .breakdown-table {
+    width: 100%;
+    background: #1a1d27;
+    border-radius: 12px;
+    border: 1px solid #2a2d3a;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .breakdown-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .breakdown-table th {
+    background: #22253a;
+    padding: 10px 14px;
+    text-align: right;
+    color: #aaa;
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+  }
+  .breakdown-table th:first-child { text-align: left; }
+  .breakdown-table td {
+    padding: 10px 14px;
+    text-align: right;
+    border-bottom: 1px solid #2a2d3a;
+  }
+  .breakdown-table td:first-child {
+    text-align: left;
+    font-weight: 600;
+  }
+  .breakdown-table tr:last-child td { border-bottom: none; }
+  .breakdown-table tr.total-row td {
+    font-weight: 700;
+    border-top: 2px solid #444;
+    color: #fff;
+  }
+  .pos { color: #4ade80; }
+  .neg { color: #f87171; }
+</style>
+</head>
+<body>
+
+<h1>Simulador P&L — Snow Trips 2026</h1>
+<p class="subtitle">Capacidad: 46 pax/semana &bull; 10 semanas &bull; Costos fijos: USD 230,000</p>
+
+<div class="controls">
+  <div class="season-card season-baja">
+    <h3>Temporada Baja</h3>
+    <div class="weeks">3 semanas &bull; 138 pax max</div>
+    <div class="slider-group">
+      <label>Precio Base (H+C) <span class="val" id="baja-base-val">USD 949</span></label>
+      <input type="range" id="baja-base" min="400" max="1500" step="10" value="949">
+    </div>
+    <div class="slider-group">
+      <label>Precio Completo <span class="val" id="baja-comp-val">USD 1,949</span></label>
+      <input type="range" id="baja-comp" min="1200" max="4000" step="10" value="1949">
+    </div>
+    <div class="slider-group">
+      <label>Ocupacion <span class="val" id="baja-ocu-val">50%</span></label>
+      <input type="range" id="baja-ocu" min="0" max="100" step="1" value="50">
+    </div>
+    <div class="slider-group">
+      <label>Mix Completo <span class="val" id="baja-mix-val">50%</span></label>
+      <input type="range" id="baja-mix" min="0" max="100" step="1" value="50">
+    </div>
+  </div>
+
+  <div class="season-card season-media">
+    <h3>Temporada Media</h3>
+    <div class="weeks">3 semanas &bull; 138 pax max</div>
+    <div class="slider-group">
+      <label>Precio Base (H+C) <span class="val" id="media-base-val">USD 999</span></label>
+      <input type="range" id="media-base" min="400" max="1500" step="10" value="999">
+    </div>
+    <div class="slider-group">
+      <label>Precio Completo <span class="val" id="media-comp-val">USD 1,999</span></label>
+      <input type="range" id="media-comp" min="1200" max="4000" step="10" value="1999">
+    </div>
+    <div class="slider-group">
+      <label>Ocupacion <span class="val" id="media-ocu-val">70%</span></label>
+      <input type="range" id="media-ocu" min="0" max="100" step="1" value="70">
+    </div>
+    <div class="slider-group">
+      <label>Mix Completo <span class="val" id="media-mix-val">50%</span></label>
+      <input type="range" id="media-mix" min="0" max="100" step="1" value="50">
+    </div>
+  </div>
+
+  <div class="season-card season-alta">
+    <h3>Temporada Alta</h3>
+    <div class="weeks">4 semanas &bull; 184 pax max</div>
+    <div class="slider-group">
+      <label>Precio Base (H+C) <span class="val" id="alta-base-val">USD 1,099</span></label>
+      <input type="range" id="alta-base" min="400" max="1500" step="10" value="1099">
+    </div>
+    <div class="slider-group">
+      <label>Precio Completo <span class="val" id="alta-comp-val">USD 2,099</span></label>
+      <input type="range" id="alta-comp" min="1200" max="4000" step="10" value="2099">
+    </div>
+    <div class="slider-group">
+      <label>Ocupacion <span class="val" id="alta-ocu-val">90%</span></label>
+      <input type="range" id="alta-ocu" min="0" max="100" step="1" value="90">
+    </div>
+    <div class="slider-group">
+      <label>Mix Completo <span class="val" id="alta-mix-val">50%</span></label>
+      <input type="range" id="alta-mix" min="0" max="100" step="1" value="50">
+    </div>
+  </div>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div id="chart-container">
+  <svg id="chart" width="100%" height="380"></svg>
+</div>
+
+<div class="breakdown-table" id="breakdown"></div>
+
+<script>
+const CAPACITY_PER_WEEK = 46;
+const FIXED_COSTS = 230000;
+const VAR_COST_BASE = 4;
+const VAR_COST_COMP = 1007;
+
+const seasons = [
+  { id: 'baja', name: 'Baja', weeks: 3, color: '#4ade80' },
+  { id: 'media', name: 'Media', weeks: 3, color: '#60a5fa' },
+  { id: 'alta', name: 'Alta', weeks: 4, color: '#f472b6' }
+];
+
+const fmt = n => n.toLocaleString('es-AR', { maximumFractionDigits: 0 });
+const fmtUSD = n => 'USD ' + fmt(n);
+
+function getInputs() {
+  return seasons.map(s => ({
+    ...s,
+    priceBase: +document.getElementById(`${s.id}-base`).value,
+    priceComp: +document.getElementById(`${s.id}-comp`).value,
+    occupancy: +document.getElementById(`${s.id}-ocu`).value / 100,
+    mixComp: +document.getElementById(`${s.id}-mix`).value / 100
+  }));
+}
+
+function calculate(inputs) {
+  let totalIncome = 0, totalVarCost = 0, totalPax = 0;
+
+  const details = inputs.map(s => {
+    const maxPax = CAPACITY_PER_WEEK * s.weeks;
+    const pax = Math.round(maxPax * s.occupancy);
+    const paxComp = Math.round(pax * s.mixComp);
+    const paxBase = pax - paxComp;
+
+    const income = paxBase * s.priceBase + paxComp * s.priceComp;
+    const varCost = paxBase * VAR_COST_BASE + paxComp * VAR_COST_COMP;
+    const contribution = income - varCost;
+
+    totalIncome += income;
+    totalVarCost += varCost;
+    totalPax += pax;
+
+    return { ...s, maxPax, pax, paxBase, paxComp, income, varCost, contribution };
+  });
+
+  const totalContribution = totalIncome - totalVarCost;
+  const netResult = totalContribution - FIXED_COSTS;
+  const avgPrice = totalPax > 0 ? totalIncome / totalPax : 0;
+  const totalMaxPax = inputs.reduce((sum, s) => sum + CAPACITY_PER_WEEK * s.weeks, 0);
+  const totalOccupancy = totalMaxPax > 0 ? totalPax / totalMaxPax : 0;
+
+  return { details, totalIncome, totalVarCost, totalContribution, netResult, totalPax, avgPrice, totalOccupancy, totalMaxPax };
+}
+
+function updateLabels(inputs) {
+  inputs.forEach(s => {
+    document.getElementById(`${s.id}-base-val`).textContent = fmtUSD(s.priceBase);
+    document.getElementById(`${s.id}-comp-val`).textContent = fmtUSD(s.priceComp);
+    document.getElementById(`${s.id}-ocu-val`).textContent = Math.round(s.occupancy * 100) + '%';
+    document.getElementById(`${s.id}-mix-val`).textContent = Math.round(s.mixComp * 100) + '%';
+  });
+}
+
+function renderKPIs(data) {
+  const isPositive = data.netResult >= 0;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi result ${isPositive ? 'positive' : 'negative'}">
+      <div class="label">Resultado Neto</div>
+      <div class="value">${data.netResult >= 0 ? '+' : ''}${fmtUSD(data.netResult)}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Ingreso Total</div>
+      <div class="value">${fmtUSD(data.totalIncome)}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Costos Variables</div>
+      <div class="value">${fmtUSD(data.totalVarCost)}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Contribucion Marginal</div>
+      <div class="value">${fmtUSD(data.totalContribution)}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Costos Fijos</div>
+      <div class="value">${fmtUSD(FIXED_COSTS)}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Pax Totales</div>
+      <div class="value">${data.totalPax} / ${data.totalMaxPax}</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Ocupacion Global</div>
+      <div class="value">${Math.round(data.totalOccupancy * 100)}%</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Precio Promedio</div>
+      <div class="value">${fmtUSD(Math.round(data.avgPrice))}</div>
+    </div>
+  `;
+}
+
+function renderTable(data) {
+  const rows = data.details.map(d => `
+    <tr>
+      <td style="color:${d.color}">${d.name}</td>
+      <td>${d.pax}</td>
+      <td>${d.paxBase}</td>
+      <td>${d.paxComp}</td>
+      <td>${fmtUSD(d.income)}</td>
+      <td>${fmtUSD(d.varCost)}</td>
+      <td class="${d.contribution >= 0 ? 'pos' : 'neg'}">${fmtUSD(d.contribution)}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('breakdown').innerHTML = `
+    <table>
+      <tr>
+        <th>Temporada</th><th>Pax</th><th>Base</th><th>Completo</th>
+        <th>Ingreso</th><th>Costo Var</th><th>Contribucion</th>
+      </tr>
+      ${rows}
+      <tr class="total-row">
+        <td>TOTAL</td>
+        <td>${data.totalPax}</td>
+        <td>${data.details.reduce((s, d) => s + d.paxBase, 0)}</td>
+        <td>${data.details.reduce((s, d) => s + d.paxComp, 0)}</td>
+        <td>${fmtUSD(data.totalIncome)}</td>
+        <td>${fmtUSD(data.totalVarCost)}</td>
+        <td class="${data.totalContribution >= 0 ? 'pos' : 'neg'}">${fmtUSD(data.totalContribution)}</td>
+      </tr>
+    </table>
+  `;
+}
+
+function renderChart(data) {
+  const container = document.getElementById('chart-container');
+  const totalWidth = container.clientWidth - 40;
+  const svg = d3.select('#chart');
+  svg.attr('width', totalWidth);
+  svg.selectAll('*').remove();
+
+  const margin = { top: 30, right: 20, bottom: 50, left: 80 };
+  const width = totalWidth - margin.left - margin.right;
+  const height = 340 - margin.top - margin.bottom;
+
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Stacked data: income split into varCost + contribution
+  const maxVal = Math.max(
+    d3.max(data.details, d => d.income),
+    FIXED_COSTS / 3 * 1.2
+  );
+
+  const xScale = d3.scaleBand()
+    .domain(data.details.map(d => d.name))
+    .range([0, width])
+    .padding(0.35);
+
+  const yScale = d3.scaleLinear()
+    .domain([0, maxVal * 1.15])
+    .range([height, 0]);
+
+  // Grid lines
+  g.append('g')
+    .attr('opacity', 0.08)
+    .call(d3.axisLeft(yScale).tickSize(-width).tickFormat(''));
+
+  // Breakeven line (per-season share: proportional to contribution weight)
+  const breakEvenPerSeason = FIXED_COSTS / 3;
+  g.append('line')
+    .attr('x1', 0).attr('x2', width)
+    .attr('y1', yScale(breakEvenPerSeason))
+    .attr('y2', yScale(breakEvenPerSeason))
+    .attr('stroke', '#fbbf24')
+    .attr('stroke-width', 2)
+    .attr('stroke-dasharray', '8,4');
+
+  g.append('text')
+    .attr('x', width - 4)
+    .attr('y', yScale(breakEvenPerSeason) - 8)
+    .attr('text-anchor', 'end')
+    .attr('fill', '#fbbf24')
+    .attr('font-size', '11px')
+    .text(`Breakeven (${fmtUSD(breakEvenPerSeason)}/temp)`);
+
+  // Bars - variable cost portion
+  g.selectAll('.bar-var')
+    .data(data.details)
+    .join('rect')
+    .attr('class', 'bar-var')
+    .attr('x', d => xScale(d.name))
+    .attr('y', d => yScale(d.varCost))
+    .attr('width', xScale.bandwidth())
+    .attr('height', d => height - yScale(d.varCost))
+    .attr('fill', '#ef4444')
+    .attr('opacity', 0.6)
+    .attr('rx', 4);
+
+  // Bars - contribution portion (stacked on top of var cost)
+  g.selectAll('.bar-contrib')
+    .data(data.details)
+    .join('rect')
+    .attr('class', 'bar-contrib')
+    .attr('x', d => xScale(d.name))
+    .attr('y', d => yScale(d.income))
+    .attr('width', xScale.bandwidth())
+    .attr('height', d => yScale(d.varCost) - yScale(d.income))
+    .attr('fill', d => d.color)
+    .attr('opacity', 0.85)
+    .attr('rx', 4);
+
+  // Income labels on bars
+  g.selectAll('.label-income')
+    .data(data.details)
+    .join('text')
+    .attr('x', d => xScale(d.name) + xScale.bandwidth() / 2)
+    .attr('y', d => yScale(d.income) - 8)
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#fff')
+    .attr('font-size', '12px')
+    .attr('font-weight', '600')
+    .text(d => fmtUSD(d.income));
+
+  // Contribution labels inside bars
+  g.selectAll('.label-contrib')
+    .data(data.details)
+    .join('text')
+    .attr('x', d => xScale(d.name) + xScale.bandwidth() / 2)
+    .attr('y', d => {
+      const barTop = yScale(d.income);
+      const barMid = yScale(d.varCost);
+      return (barTop + barMid) / 2 + 4;
+    })
+    .attr('text-anchor', 'middle')
+    .attr('fill', '#fff')
+    .attr('font-size', '11px')
+    .attr('font-weight', '500')
+    .text(d => `CM: ${fmtUSD(d.contribution)}`);
+
+  // X axis
+  g.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(xScale))
+    .selectAll('text')
+    .attr('fill', '#aaa')
+    .attr('font-size', '13px');
+
+  // Y axis
+  g.append('g')
+    .call(d3.axisLeft(yScale).ticks(6).tickFormat(d => 'USD ' + d3.format(',.0f')(d)))
+    .selectAll('text')
+    .attr('fill', '#aaa')
+    .attr('font-size', '11px');
+
+  // Remove axis lines
+  svg.selectAll('.domain').attr('stroke', '#333');
+  svg.selectAll('.tick line').attr('stroke', '#333');
+
+  // Legend
+  const legend = g.append('g').attr('transform', `translate(0, ${height + 36})`);
+  const items = [
+    { label: 'Contribucion Marginal', color: '#888' },
+    { label: 'Costo Variable', color: '#ef4444' },
+    { label: 'Breakeven/temporada', color: '#fbbf24', dash: true }
+  ];
+  items.forEach((item, i) => {
+    const x = i * 200;
+    if (item.dash) {
+      legend.append('line').attr('x1', x).attr('x2', x + 20).attr('y1', 0).attr('y2', 0)
+        .attr('stroke', item.color).attr('stroke-width', 2).attr('stroke-dasharray', '4,2');
+    } else {
+      legend.append('rect').attr('x', x).attr('y', -6).attr('width', 14).attr('height', 14)
+        .attr('fill', item.color).attr('opacity', item.color === '#ef4444' ? 0.6 : 0.85).attr('rx', 2);
+    }
+    legend.append('text').attr('x', x + 24).attr('y', 4).attr('fill', '#888')
+      .attr('font-size', '11px').text(item.label);
+  });
+}
+
+function update() {
+  const inputs = getInputs();
+  updateLabels(inputs);
+  const data = calculate(inputs);
+  renderKPIs(data);
+  renderChart(data);
+  renderTable(data);
+}
+
+// Attach listeners to all sliders
+document.querySelectorAll('input[type="range"]').forEach(el => {
+  el.addEventListener('input', update);
+});
+
+// Initial render
+update();
+
+// Responsive
+window.addEventListener('resize', update);
+</script>
+</body>
+</html>
