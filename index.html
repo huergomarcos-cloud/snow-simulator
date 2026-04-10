@@ -277,7 +277,7 @@
           <tr class="border-b border-slate-700/50">
             <td class="py-3 pr-3">
               <span class="text-white font-semibold">3 personas</span>
-              <span class="text-slate-500 text-xs block">1 cama libre</span>
+              <span class="text-slate-500 text-xs block">Hab de 4 — 1 cama libre</span>
             </td>
             <td class="text-center py-3 px-2">
               <span class="text-white font-semibold" id="room-3-7">—</span>
@@ -292,7 +292,7 @@
           <tr class="border-b border-slate-700/50">
             <td class="py-3 pr-3">
               <span class="text-white font-semibold">2 personas</span>
-              <span class="text-slate-500 text-xs block">2 camas libres</span>
+              <span class="text-slate-500 text-xs block">Hab de 3 — 1 cama libre</span>
             </td>
             <td class="text-center py-3 px-2">
               <span class="text-white font-semibold" id="room-2-7">—</span>
@@ -307,7 +307,7 @@
           <tr>
             <td class="py-3 pr-3">
               <span class="text-white font-semibold">1 persona</span>
-              <span class="text-slate-500 text-xs block">3 camas libres</span>
+              <span class="text-slate-500 text-xs block">Hab de 3 — 2 camas libres</span>
             </td>
             <td class="text-center py-3 px-2">
               <span class="text-white font-semibold" id="room-1-7">—</span>
@@ -325,7 +325,7 @@
 
     <div class="mt-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
       <p class="text-xs text-slate-400">
-        <span class="text-white font-semibold">Lógica:</span> CM habitación = 4 × CM por persona. Si van menos, se descuentan los CV de los ausentes pero la CM total de la habitación se distribuye entre los presentes. Precio pp = CV individual + (CM hab ÷ ocupantes).
+        <span class="text-white font-semibold">Lógica:</span> CM de la hab = tamaño hab × CM por persona. Si van menos, se descuentan los CV de los ausentes pero la CM total se distribuye entre los presentes. Hab de 4 para grupos de 3-4. Hab de 3 para 1-2 personas.
       </p>
     </div>
 
@@ -522,9 +522,20 @@ function update() {
     { days: 3, cv: CV_3, cm: cm3, suffix: '3' }
   ];
 
-  [4, 3, 2, 1].forEach(occ => {
+  // 4 personas → hab de 4 (completa)
+  // 3 personas → hab de 4 (1 cama libre), roomCM = 4 × CM
+  // 2 personas → hab de 3 (1 cama libre), roomCM = 3 × CM
+  // 1 persona  → hab de 3 (2 camas libres), roomCM = 3 × CM
+  const occupancy = [
+    { occ: 4, roomSize: 4 },
+    { occ: 3, roomSize: 4 },
+    { occ: 2, roomSize: 3 },
+    { occ: 1, roomSize: 3 }
+  ];
+
+  occupancy.forEach(({ occ, roomSize }) => {
     formats.forEach(f => {
-      const roomCM = 4 * f.cm;
+      const roomCM = roomSize * f.cm;
       const pricePerPerson = f.cv + (roomCM / occ);
       const el = document.getElementById(`room-${occ}-${f.suffix}`);
       el.textContent = fmt(pricePerPerson);
@@ -532,9 +543,8 @@ function update() {
   });
 
   // Room CM note
-  const roomCM7 = 4 * cm7;
   document.getElementById('room-cm-note').textContent =
-    `CM total de la habitación: ${fmt(roomCM7)} (7d) — se mantiene igual sin importar cuántos vayan.`;
+    `CM hab de 4: ${fmt(4 * cm7)} | CM hab de 3: ${fmt(3 * cm7)} (7d) — se mantiene sin importar cuántos vayan.`;
 
   // Breakeven
   document.getElementById('be-7').textContent = Math.ceil(FIXED_COSTS / cm7);
