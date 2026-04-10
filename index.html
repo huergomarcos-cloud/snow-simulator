@@ -355,6 +355,14 @@
     <p class="text-xs text-slate-500 mt-2 text-center">Paquetes necesarios para cubrir $230,000 de costos fijos (si solo vendieras ese formato)</p>
   </div>
 
+  <!-- Export -->
+  <div class="text-center mb-8">
+    <button onclick="exportPrices()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-all text-sm">
+      📋 Exportar tabla de precios
+    </button>
+    <p class="text-slate-500 text-xs mt-2">Copia al portapapeles los precios de 3 y 4 días en todas las temporadas con todas las ocupaciones</p>
+  </div>
+
 </div>
 
 <script>
@@ -550,6 +558,61 @@ function update() {
   document.getElementById('be-7').textContent = Math.ceil(FIXED_COSTS / cm7);
   document.getElementById('be-4').textContent = cm4 > 0 ? Math.ceil(FIXED_COSTS / cm4) : '∞';
   document.getElementById('be-3').textContent = cm3 > 0 ? Math.ceil(FIXED_COSTS / cm3) : '∞';
+}
+
+function exportPrices() {
+  const disc4 = parseInt(document.getElementById('dial-4').value);
+  const disc3 = parseInt(document.getElementById('dial-3').value);
+
+  const occConfig = [
+    { occ: 4, roomSize: 4, label: '4 personas (hab de 4)' },
+    { occ: 3, roomSize: 4, label: '3 personas (hab de 4)' },
+    { occ: 2, roomSize: 3, label: '2 personas (hab de 3)' },
+    { occ: 1, roomSize: 3, label: '1 persona (hab de 3)' }
+  ];
+
+  let text = '❄️ SWELL SNOW — PRECIOS MINI-WEEKS\n';
+  text += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  if (disc4 > 0 || disc3 > 0) {
+    text += `Descuentos aplicados: 4 días ${fmt(disc4)} | 3 días ${fmt(disc3)}\n`;
+  }
+  text += '\n';
+
+  ['alta', 'media', 'baja'].forEach(s => {
+    const season = SEASONS[s];
+    const cm = season.price - CV_7;
+    const basePrice4 = cm + CV_4 - disc4;
+    const basePrice3 = cm + CV_3 - disc3;
+    const cm4 = basePrice4 - CV_4;
+    const cm3 = basePrice3 - CV_3;
+
+    text += `📌 TEMPORADA ${season.label.toUpperCase()} (semana: ${fmt(season.price)})\n`;
+    text += `${'Ocupación'.padEnd(26)} ${'4 días'.padStart(10)} ${'3 días'.padStart(10)}\n`;
+    text += `${'─'.repeat(48)}\n`;
+
+    occConfig.forEach(({ occ, roomSize, label }) => {
+      const roomCM4 = roomSize * cm4;
+      const roomCM3 = roomSize * cm3;
+      const price4 = CV_4 + (roomCM4 / occ);
+      const price3 = CV_3 + (roomCM3 / occ);
+      text += `${label.padEnd(26)} ${fmt(price4).padStart(10)} ${fmt(price3).padStart(10)}\n`;
+    });
+    text += '\n';
+  });
+
+  text += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  text += 'Generado con Snow Simulator — Swell';
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('[onclick="exportPrices()"]');
+    const original = btn.innerHTML;
+    btn.innerHTML = '✅ Copiado al portapapeles';
+    btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+    setTimeout(() => {
+      btn.innerHTML = original;
+      btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+    }, 2000);
+  });
 }
 
 // Init
