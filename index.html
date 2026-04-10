@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Snow Packages — Simulador Mini-Weeks</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
   body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0; }
@@ -358,9 +360,9 @@
   <!-- Export -->
   <div class="text-center mb-8">
     <button onclick="exportPrices()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-all text-sm">
-      📋 Exportar tabla de precios
+      📄 Descargar PDF de precios
     </button>
-    <p class="text-slate-500 text-xs mt-2">Copia al portapapeles los precios de 3 y 4 días en todas las temporadas con todas las ocupaciones</p>
+    <p class="text-slate-500 text-xs mt-2">Descarga un PDF con los precios de todas las temporadas y ocupaciones</p>
   </div>
 
 </div>
@@ -561,6 +563,9 @@ function update() {
 }
 
 function exportPrices() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
   const disc4 = parseInt(document.getElementById('dial-4').value);
   const disc3 = parseInt(document.getElementById('dial-3').value);
 
@@ -571,48 +576,73 @@ function exportPrices() {
     { occ: 1, roomSize: 3, label: '1 persona (hab de 3)' }
   ];
 
-  let text = '❄️ SWELL SNOW — PRECIOS MINI-WEEKS\n';
-  text += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  // Header
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Swell Snow — Precios Mini-Weeks', 105, 25, { align: 'center' });
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120);
+  doc.text('Precio por persona por paquete', 105, 32, { align: 'center' });
   if (disc4 > 0 || disc3 > 0) {
-    text += `Descuentos aplicados: 4 días ${fmt(disc4)} | 3 días ${fmt(disc3)}\n`;
+    doc.text(`Descuentos aplicados: 4 dias ${fmt(disc4)} | 3 dias ${fmt(disc3)}`, 105, 37, { align: 'center' });
   }
-  text += '\n';
+  doc.setTextColor(0);
+
+  let startY = disc4 > 0 || disc3 > 0 ? 45 : 40;
 
   ['alta', 'media', 'baja'].forEach(s => {
     const season = SEASONS[s];
     const cm = season.price - CV_7;
-    const basePrice4 = cm + CV_4 - disc4;
-    const basePrice3 = cm + CV_3 - disc3;
-    const cm4 = basePrice4 - CV_4;
-    const cm3 = basePrice3 - CV_3;
+    const price4 = cm + CV_4 - disc4;
+    const price3 = cm + CV_3 - disc3;
+    const cm4 = price4 - CV_4;
+    const cm3 = price3 - CV_3;
 
-    text += `📌 TEMPORADA ${season.label.toUpperCase()} (semana: ${fmt(season.price)})\n`;
-    text += `${'Ocupación'.padEnd(26)} ${'4 días'.padStart(10)} ${'3 días'.padStart(10)}\n`;
-    text += `${'─'.repeat(48)}\n`;
+    // Season title
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Temporada ${season.label} (semana completa: ${fmt(season.price)})`, 14, startY);
+    startY += 2;
 
-    occConfig.forEach(({ occ, roomSize, label }) => {
-      const roomCM4 = roomSize * cm4;
-      const roomCM3 = roomSize * cm3;
-      const price4 = CV_4 + (roomCM4 / occ);
-      const price3 = CV_3 + (roomCM3 / occ);
-      text += `${label.padEnd(26)} ${fmt(price4).padStart(10)} ${fmt(price3).padStart(10)}\n`;
+    const rows = occConfig.map(({ occ, roomSize, label }) => {
+      const p7 = CV_7 + (roomSize * cm / occ);
+      const p4 = CV_4 + (roomSize * cm4 / occ);
+      const p3 = CV_3 + (roomSize * cm3 / occ);
+      return [label, fmt(p7), fmt(p4), fmt(p3)];
     });
-    text += '\n';
+
+    doc.autoTable({
+      startY: startY,
+      head: [['Ocupacion', '7 dias', '4 dias', '3 dias']],
+      body: rows,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 4, halign: 'center' },
+      columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      margin: { left: 14, right: 14 }
+    });
+
+    startY = doc.lastAutoTable.finalY + 12;
   });
 
-  text += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-  text += 'Generado con Snow Simulator — Swell';
+  // Footer
+  doc.setFontSize(8);
+  doc.setTextColor(150);
+  doc.text('Generado con Snow Simulator — Swell', 105, 285, { align: 'center' });
 
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.querySelector('[onclick="exportPrices()"]');
-    const original = btn.innerHTML;
-    btn.innerHTML = '✅ Copiado al portapapeles';
-    btn.classList.replace('bg-blue-600', 'bg-emerald-600');
-    setTimeout(() => {
-      btn.innerHTML = original;
-      btn.classList.replace('bg-emerald-600', 'bg-blue-600');
-    }, 2000);
-  });
+  doc.save('swell-snow-precios.pdf');
+
+  const btn = document.querySelector('[onclick="exportPrices()"]');
+  const original = btn.innerHTML;
+  btn.innerHTML = '✅ PDF descargado';
+  btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+  setTimeout(() => {
+    btn.innerHTML = original;
+    btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+  }, 2000);
 }
 
 // Init
