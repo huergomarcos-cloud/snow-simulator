@@ -34,10 +34,28 @@
     border: 2px solid #93c5fd;
     box-shadow: 0 2px 8px rgba(59,130,246,0.4);
   }
-  .season-tab { cursor: pointer; padding: 8px 20px; border-radius: 8px; font-weight: 600; transition: all 0.2s; }
+  .season-tab { cursor: pointer; padding: 10px 16px; border-radius: 8px; font-weight: 600; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 110px; }
   .season-tab.active { background: #3b82f6; color: white; }
   .season-tab:not(.active) { background: #334155; color: #94a3b8; }
   .season-tab:not(.active):hover { background: #475569; }
+  .season-tab .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; }
+  .price-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed currentColor;
+    width: 80px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: inherit;
+    outline: none;
+    padding: 0;
+    font-family: inherit;
+  }
+  .price-input:focus { border-bottom-style: solid; }
+  .price-input::-webkit-outer-spin-button,
+  .price-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .price-input { -moz-appearance: textfield; }
 
   .combo-card { background: #172033; border: 1px solid #1e40af; border-radius: 12px; }
 
@@ -90,11 +108,23 @@
     </div>
   </div>
 
-  <!-- Season tabs -->
-  <div class="flex gap-2 mb-6">
-    <button class="season-tab active" data-season="alta" onclick="setSeason('alta')">Alta — $2,099</button>
-    <button class="season-tab" data-season="media" onclick="setSeason('media')">Media — $1,999</button>
-    <button class="season-tab" data-season="baja" onclick="setSeason('baja')">Baja — $1,949</button>
+  <!-- Season tabs (editables) -->
+  <div class="mb-2">
+    <p class="text-xs text-slate-500">Click para activar la temporada · editá el precio del paquete 7 días</p>
+  </div>
+  <div class="flex gap-2 mb-6 flex-wrap">
+    <div class="season-tab active" data-season="alta" onclick="setSeason('alta')">
+      <span class="label">Alta</span>
+      <div><span class="text-xs opacity-70">$</span><input type="number" class="price-input" data-price="alta" value="2099" onclick="event.stopPropagation()" oninput="updatePrice('alta', this.value)"></div>
+    </div>
+    <div class="season-tab" data-season="media" onclick="setSeason('media')">
+      <span class="label">Media</span>
+      <div><span class="text-xs opacity-70">$</span><input type="number" class="price-input" data-price="media" value="1999" onclick="event.stopPropagation()" oninput="updatePrice('media', this.value)"></div>
+    </div>
+    <div class="season-tab" data-season="baja" onclick="setSeason('baja')">
+      <span class="label">Baja</span>
+      <div><span class="text-xs opacity-70">$</span><input type="number" class="price-input" data-price="baja" value="1949" onclick="event.stopPropagation()" oninput="updatePrice('baja', this.value)"></div>
+    </div>
   </div>
 
   <!-- Referencia: paquete de 7 días -->
@@ -243,6 +273,82 @@
     </div>
 
     <p class="text-xs mt-3" id="combo-note"></p>
+  </div>
+
+  <!-- 7 días por tipo de habitación -->
+  <div class="card p-5 mb-6">
+    <h2 class="text-lg font-semibold text-white mb-1">🛏️ Precios 7 días por tipo de habitación</h2>
+    <p class="text-slate-400 text-sm mb-4">Cada cuarto deja la <span class="text-white font-semibold">misma CM total</span> que un cuádruple completo. Si va menos gente, los CV bajan pero el "alquiler" del cuarto se reparte entre los presentes.</p>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-slate-400 border-b border-slate-700">
+            <th class="text-left py-2 pr-3">Tipo de habitación</th>
+            <th class="text-center py-2 px-2">Alta</th>
+            <th class="text-center py-2 px-2">Media</th>
+            <th class="text-center py-2 px-2">Baja</th>
+          </tr>
+        </thead>
+        <tbody id="room-type-tbody">
+          <tr class="border-b border-slate-700/50">
+            <td class="py-3 pr-3">
+              <span class="text-white font-semibold">Cuádruple</span>
+              <span class="text-slate-500 text-xs block">4 personas — referencia</span>
+            </td>
+            <td class="text-center py-3 px-2"><span class="text-white font-semibold" id="t7-quad-alta">—</span></td>
+            <td class="text-center py-3 px-2"><span class="text-white font-semibold" id="t7-quad-media">—</span></td>
+            <td class="text-center py-3 px-2"><span class="text-white font-semibold" id="t7-quad-baja">—</span></td>
+          </tr>
+          <tr class="border-b border-slate-700/50">
+            <td class="py-3 pr-3">
+              <span class="text-white font-semibold">Triple</span>
+              <span class="text-slate-500 text-xs block">3 personas</span>
+            </td>
+            <td class="text-center py-3 px-2"><span class="text-blue-400 font-semibold" id="t7-triple-alta">—</span></td>
+            <td class="text-center py-3 px-2"><span class="text-blue-400 font-semibold" id="t7-triple-media">—</span></td>
+            <td class="text-center py-3 px-2"><span class="text-blue-400 font-semibold" id="t7-triple-baja">—</span></td>
+          </tr>
+          <tr class="border-b border-slate-700/50">
+            <td class="py-3 pr-3">
+              <span class="text-white font-semibold">Doble</span>
+              <span class="text-slate-500 text-xs block">2 personas</span>
+            </td>
+            <td class="text-center py-3 px-2"><span class="text-blue-400 font-semibold" id="t7-doble-alta">—</span></td>
+            <td class="text-center py-3 px-2"><span class="text-blue-400 font-semibold" id="t7-doble-media">—</span></td>
+            <td class="text-center py-3 px-2"><span class="text-blue-400 font-semibold" id="t7-doble-baja">—</span></td>
+          </tr>
+          <tr>
+            <td class="py-3 pr-3">
+              <span class="text-white font-semibold">Single</span>
+              <span class="text-slate-500 text-xs block">1 persona — cuarto completo</span>
+            </td>
+            <td class="text-center py-3 px-2"><span class="text-blue-400 font-semibold" id="t7-single-alta">—</span></td>
+            <td class="text-center py-3 px-2"><span class="text-blue-400 font-semibold" id="t7-single-media">—</span></td>
+            <td class="text-center py-3 px-2"><span class="text-blue-400 font-semibold" id="t7-single-baja">—</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+      <div class="p-2 rounded bg-slate-800/50 border border-slate-700/50">
+        <span class="text-slate-500 block">CM cuarto Alta</span>
+        <span class="positive font-semibold" id="cm-room-alta">—</span>
+      </div>
+      <div class="p-2 rounded bg-slate-800/50 border border-slate-700/50">
+        <span class="text-slate-500 block">CM cuarto Media</span>
+        <span class="positive font-semibold" id="cm-room-media">—</span>
+      </div>
+      <div class="p-2 rounded bg-slate-800/50 border border-slate-700/50">
+        <span class="text-slate-500 block">CM cuarto Baja</span>
+        <span class="positive font-semibold" id="cm-room-baja">—</span>
+      </div>
+      <div class="p-2 rounded bg-slate-800/50 border border-slate-700/50">
+        <span class="text-slate-500 block">Fórmula</span>
+        <span class="text-white font-mono text-[10px]">$1,017 + CM/n</span>
+      </div>
+    </div>
   </div>
 
   <!-- Ocupación habitación -->
@@ -396,6 +502,14 @@ function setSeason(s) {
   update();
 }
 
+function updatePrice(season, value) {
+  const v = parseInt(value);
+  if (!isNaN(v) && v > 0) {
+    SEASONS[season].price = v;
+    update();
+  }
+}
+
 function update() {
   const season = SEASONS[currentSeason];
   const price7 = season.price;
@@ -523,6 +637,23 @@ function update() {
     : `⚠️ La CM combinada es ${fmt(Math.abs(comboVs))} menos que 1 semana completa.`;
   document.getElementById('combo-note').textContent = note;
   document.getElementById('combo-note').className = 'text-xs mt-3 ' + (comboCM > cm7 ? 'positive' : comboCM === cm7 ? 'neutral' : 'warning');
+
+  // 7 días por tipo de habitación — CM_hab constante = 4 × CM_persona (igual al cuádruple completo) por temporada
+  const roomTypes = [
+    { key: 'quad',   occ: 4 },
+    { key: 'triple', occ: 3 },
+    { key: 'doble',  occ: 2 },
+    { key: 'single', occ: 1 }
+  ];
+  ['alta', 'media', 'baja'].forEach(s => {
+    const cmSeason = SEASONS[s].price - CV_7;
+    const roomCM = 4 * cmSeason;
+    document.getElementById(`cm-room-${s}`).textContent = fmt(roomCM);
+    roomTypes.forEach(({ key, occ }) => {
+      const pricePP = CV_7 + (roomCM / occ);
+      document.getElementById(`t7-${key}-${s}`).textContent = fmt(pricePP);
+    });
+  });
 
   // Room occupancy
   // CM of the room = 4 × CM per person. Price pp = CV_individual + (roomCM / occupants)
